@@ -1,0 +1,61 @@
+name: deploy to eks
+
+on:
+  workflow_call:
+    inputs:
+      image_tag:
+        description: 배포할 이미지
+        required: true
+        type: string
+      stage:
+        description: 스테이지
+        type: string
+      service_name:
+        description: 서비스 이름
+        required: true
+        type: string
+      branch:
+        description: 브랜치
+        type: string
+    secrets:
+      GITHUB_BOT_TOKEN:
+        required: true
+
+jobs:
+  deploy:
+    name: deploy ${{ inputs.branch }} to ${{ inputs.stage }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Clone Deploy reposiory
+        uses: actions/checkout@v2
+        with:
+          repository: croquiscom/zigzag-deploy
+          ref: 'main'
+          token: ${{ secrets.GITHUB_BOT_TOKEN }}
+
+      - name: Image Tag Change
+        uses: mikefarah/yq@v4.9.6
+        with:
+          cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services/${{ inputs.service_name }}/values-${{ inputs.stage }}.yaml
+
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v3
+        with:
+          token: ${{ secrets.GITHUB_BOT_TOKEN }}
+          author: sre-croquis <sre-croquis@users.noreply.github.com>
+          commit-message: 'deploy: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}'
+          base: main
+          branch: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}
+          title: '[Deploy-${{ inputs.stage }}] zigzag-${{ inputs.service_name }}'
+          body: |
+            ## Service
+            - ${{ inputs.service_name }}
+            ## Stage
+            - ${{ inputs.stage }}
+            ## Docker Image
+            - ${{ inputs.image_tag }}
+          labels: |
+            automerge
