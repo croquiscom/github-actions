@@ -39,12 +39,24 @@ on:
         description: Dockerfile 경로
         required: true
         type: string
+      slack_notify_channel:
+        description: 슬랙 알림 채널
+        required: true
+        type: string
+      slack_thread_key:
+        description: 슬랙 메시지 갱신을 위한 키
+        required: true
+        type: string
     secrets:
       AWS_ACCESS_KEY:
         required: true
       AWS_SECRET_KEY:
         required: true
       SSH_PRIVATE_KEY:
+        required: true
+      SLACK_POST_MESSAGE_URL:
+        required: true
+      SLACK_POST_MESSAGE_TOKEN:
         required: true
     outputs:
       image:
@@ -68,6 +80,31 @@ jobs:
       - name: Check branch is production branch (production)
         run: exit 255
         if: (inputs.stage == 'production' || inputs.stage == 'beta-rc') && inputs.branch != inputs.production_branch
+
+      - name: Notify build start
+        run: |
+          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+            {
+              "thread_key": "${{ inputs.slack_thread_key }}",
+              "channel": "${{ inputs.slack_notify_channel }}",
+              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
+              "attachments": [
+                {
+                  "color": "#36C5F0",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 시작" },
+                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          '
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -137,6 +174,58 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Notify build success
+        if: success()
+        run: |
+          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+            {
+              "thread_key": "${{ inputs.slack_thread_key }}",
+              "channel": "${{ inputs.slack_notify_channel }}",
+              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
+              "attachments": [
+                {
+                  "color": "#2EB67D",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 성공" },
+                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          '
+
+      - name: Notify build fail
+        if: failure()
+        run: |
+          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+            {
+              "thread_key": "${{ inputs.slack_thread_key }}",
+              "channel": "${{ inputs.slack_notify_channel }}",
+              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
+              "attachments": [
+                {
+                  "color": "#E01E5A",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 실패" },
+                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          '
 
     outputs:
       image: ${{ steps.build.outputs.image }}
