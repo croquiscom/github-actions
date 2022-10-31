@@ -18,6 +18,10 @@ on:
         description: 서비스 이름
         required: true
         type: string
+      task_definition_name:
+        description: 태스크 정의 파일 이름
+        required: true
+        type: string
       branch:
         description: 브랜치
         type: string
@@ -79,16 +83,16 @@ jobs:
 
       - name: Download task definition
         env:
-          TASK_DEF_NAME: ${{ inputs.service_name }}
+          TASK_DEFINITION_NAME: ${{ inputs.task_definition_name }}
         run: |
-          aws ecs describe-task-definition --task-definition $TASK_DEF_NAME --query taskDefinition > task-definition.json
+          aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME --query taskDefinition > task-definition.json
 
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
-          container-name: ${{ inputs.service_name }}
+          container-name: ${{ inputs.task_definition_name }}
           image: ${{ inputs.image }}
 
       - name: Deploy Amazon ECS task definition
