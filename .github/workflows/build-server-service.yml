@@ -59,6 +59,8 @@ on:
       SLACK_POST_MESSAGE_TOKEN:
         required: true
     outputs:
+      git_ref:
+        value: ${{ jobs.build.outputs.git_ref }}
       image:
         value: ${{ jobs.build.outputs.image }}
       image_tag:
@@ -124,6 +126,34 @@ jobs:
           echo "::set-output name=deploy_version::$DEPLOY_VERSION"
           perl -pi -e "s|\"version\": \".*\"|\"version\": \"$DEPLOY_VERSION\"|" package.json || echo not Node.js project
 
+      - name: Notify build start with commit
+        env:
+          GIT_REF: ${{ steps.var.outputs.git_ref }}
+        run: |
+          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+            {
+              "thread_key": "${{ inputs.slack_thread_key }}",
+              "channel": "${{ inputs.slack_notify_channel }}",
+              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
+              "attachments": [
+                {
+                  "color": "#36C5F0",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "fields": [
+                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 시작" },
+                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
+                        { "type": "mrkdwn", "text": "*커밋:*\n${{ env.GIT_REF }}" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          '
+
       - name: Get SSH KEY
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -177,6 +207,8 @@ jobs:
 
       - name: Notify build success
         if: success()
+        env:
+          GIT_REF: ${{ steps.var.outputs.git_ref }}
         run: |
           curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
             {
@@ -192,7 +224,8 @@ jobs:
                       "fields": [
                         { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 성공" },
                         { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
+                        { "type": "mrkdwn", "text": "*커밋:*\n${{ env.GIT_REF }}" }
                       ]
                     }
                   ]
@@ -203,6 +236,8 @@ jobs:
 
       - name: Notify build fail
         if: failure()
+        env:
+          GIT_REF: ${{ steps.var.outputs.git_ref }}
         run: |
           curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
             {
@@ -218,7 +253,8 @@ jobs:
                       "fields": [
                         { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 실패" },
                         { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
+                        { "type": "mrkdwn", "text": "*커밋:*\n${{ env.GIT_REF }}" }
                       ]
                     }
                   ]
@@ -228,5 +264,6 @@ jobs:
           '
 
     outputs:
+      git_ref: ${{ steps.var.outputs.git_ref }}
       image: ${{ steps.build.outputs.image }}
       image_tag: ${{ steps.var.outputs.image_tag }}

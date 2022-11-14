@@ -25,6 +25,9 @@ on:
       branch:
         description: 브랜치
         type: string
+      git_ref:
+        description: 커밋
+        type: string
       slack_notify_channel:
         description: 슬랙 알림 채널
         required: true
@@ -65,7 +68,8 @@ jobs:
                       "fields": [
                         { "type": "mrkdwn", "text": "*배포상태:*\n이미지 배포 시작" },
                         { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
+                        { "type": "mrkdwn", "text": "*커밋:*\n${{ inputs.git_ref }}" }
                       ]
                     }
                   ]
@@ -120,7 +124,8 @@ jobs:
                       "fields": [
                         { "type": "mrkdwn", "text": "*배포상태:*\n이미지 배포 성공" },
                         { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
+                        { "type": "mrkdwn", "text": "*커밋:*\n${{ inputs.git_ref }}" }
                       ]
                     }
                   ]
@@ -146,7 +151,8 @@ jobs:
                       "fields": [
                         { "type": "mrkdwn", "text": "*배포상태:*\n이미지 배포 실패" },
                         { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
+                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
+                        { "type": "mrkdwn", "text": "*커밋:*\n${{ inputs.git_ref }}" }
                       ]
                     }
                   ]
