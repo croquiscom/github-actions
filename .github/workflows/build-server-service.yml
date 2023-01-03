@@ -3,9 +3,13 @@ name: build server service and push to ecr
 on:
   workflow_call:
     inputs:
+      deployment_uuid:
+        description: 배포 UUID
+        default: ''
+        type: string
       working_directory:
         description: 작업 디렉토리
-        default: "."
+        default: '.'
         type: string
       production_branch:
         description: 운영 환경 배포를 하는 브랜치
@@ -54,9 +58,9 @@ on:
         required: true
       SSH_PRIVATE_KEY:
         required: true
-      SLACK_POST_MESSAGE_URL:
+      RECORD_DEPLOYMENT_STEP_URL:
         required: true
-      SLACK_POST_MESSAGE_TOKEN:
+      RECORD_DEPLOYMENT_STEP_TOKEN:
         required: true
     outputs:
       git_ref:
@@ -85,26 +89,12 @@ jobs:
 
       - name: Notify build start
         run: |
-          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
             {
-              "thread_key": "${{ inputs.slack_thread_key }}",
-              "channel": "${{ inputs.slack_notify_channel }}",
-              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
-              "attachments": [
-                {
-                  "color": "#36C5F0",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "fields": [
-                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 시작" },
-                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" }
-                      ]
-                    }
-                  ]
-                }
-              ]
+              "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": ""
             }
           '
 
@@ -130,27 +120,12 @@ jobs:
         env:
           GIT_REF: ${{ steps.var.outputs.git_ref }}
         run: |
-          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
             {
-              "thread_key": "${{ inputs.slack_thread_key }}",
-              "channel": "${{ inputs.slack_notify_channel }}",
-              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
-              "attachments": [
-                {
-                  "color": "#36C5F0",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "fields": [
-                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 시작" },
-                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
-                        { "type": "mrkdwn", "text": "*커밋:*\n${{ env.GIT_REF }}" }
-                      ]
-                    }
-                  ]
-                }
-              ]
+              "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
             }
           '
 
@@ -210,27 +185,12 @@ jobs:
         env:
           GIT_REF: ${{ steps.var.outputs.git_ref }}
         run: |
-          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
             {
-              "thread_key": "${{ inputs.slack_thread_key }}",
-              "channel": "${{ inputs.slack_notify_channel }}",
-              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
-              "attachments": [
-                {
-                  "color": "#2EB67D",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "fields": [
-                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 성공" },
-                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
-                        { "type": "mrkdwn", "text": "*커밋:*\n${{ env.GIT_REF }}" }
-                      ]
-                    }
-                  ]
-                }
-              ]
+              "step": "build_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
             }
           '
 
@@ -239,27 +199,12 @@ jobs:
         env:
           GIT_REF: ${{ steps.var.outputs.git_ref }}
         run: |
-          curl -X POST "${{ secrets.SLACK_POST_MESSAGE_URL }}" -H 'Authorization: Bearer ${{ secrets.SLACK_POST_MESSAGE_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
             {
-              "thread_key": "${{ inputs.slack_thread_key }}",
-              "channel": "${{ inputs.slack_notify_channel }}",
-              "text": "*[${{ inputs.stage }}] ${{ inputs.service_name }} 배포 알림*",
-              "attachments": [
-                {
-                  "color": "#E01E5A",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "fields": [
-                        { "type": "mrkdwn", "text": "*배포상태:*\n이미지 빌드 실패" },
-                        { "type": "mrkdwn", "text": "*브랜치:*\n${{ inputs.branch }}" },
-                        { "type": "mrkdwn", "text": "*요청자:*\n${{ inputs.user_name }}" },
-                        { "type": "mrkdwn", "text": "*커밋:*\n${{ env.GIT_REF }}" }
-                      ]
-                    }
-                  ]
-                }
-              ]
+              "step": "build_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
             }
           '
 
