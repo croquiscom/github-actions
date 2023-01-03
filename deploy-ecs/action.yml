@@ -1,0 +1,126 @@
+name: deploy to ecs
+
+inputs:
+  deployment_uuid:
+    description: 배포 UUID
+    default: ''
+    type: string
+  image:
+    description: 배포할 이미지
+    required: true
+    type: string
+  stage:
+    description: 스테이지
+    type: string
+  cluster_name:
+    description: 클러스터 이름
+    required: true
+    type: string
+  service_name:
+    description: 서비스 이름
+    required: true
+    type: string
+  task_definition_name:
+    description: 태스크 정의 파일 이름
+    required: true
+    type: string
+  branch:
+    description: 브랜치
+    type: string
+  git_ref:
+    description: 커밋
+    type: string
+  slack_notify_channel:
+    description: 슬랙 알림 채널
+    required: true
+    type: string
+  slack_thread_key:
+    description: 슬랙 메시지 갱신을 위한 키
+    type: string
+  AWS_ACCESS_KEY:
+    required: true
+  AWS_SECRET_KEY:
+    required: true
+  RECORD_DEPLOYMENT_STEP_URL:
+    required: true
+  RECORD_DEPLOYMENT_STEP_TOKEN:
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Notify deploy start
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "deploy_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
+          }
+        '
+
+    - name: Configure AWS credentialsn for deploying
+      uses: aws-actions/configure-aws-credentials@v1-node16
+      with:
+        aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY }}
+        aws-secret-access-key: ${{ inputs.AWS_SECRET_KEY }}
+        aws-region: ap-northeast-2
+
+    - name: Download task definition
+      env:
+        TASK_DEFINITION_NAME: ${{ inputs.task_definition_name }}
+      shell: bash
+      run: |
+        aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME --query taskDefinition | jq -r 'del(
+          .taskDefinitionArn,
+          .requiresAttributes,
+          .compatibilities,
+          .revision,
+          .status,
+          .registeredAt,
+          .registeredBy
+        )' > task-definition.json
+
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: ${{ inputs.task_definition_name }}
+        image: ${{ inputs.image }}
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ inputs.service_name }}
+        cluster: ${{ inputs.cluster_name }}
+        wait-for-service-stability: true
+
+    - name: Notify deploy success
+      if: success()
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "deploy_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
+          }
+        '
+
+    - name: Notify deploy fail
+      if: failure()
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "deploy_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
+          }
+        '

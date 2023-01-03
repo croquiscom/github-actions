@@ -71,14 +71,8 @@ on:
         value: ${{ jobs.build.outputs.image_tag }}
 
 jobs:
-  check:
-    uses: croquiscom/github-actions/.github/workflows/check-branch-up-to-date.yml@main
-    with:
-      required_branch: ${{ inputs.production_branch }}
-
   build:
     name: build ${{ inputs.branch }} to ${{ inputs.stage }}
-    needs: check
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -103,112 +97,29 @@ jobs:
         with:
           ref: ${{ inputs.branch }}
 
-      - name: Get variables
-        id: var
-        run: |
-          cd ${{ inputs.working_directory }}
-          GIT_REF=`git rev-parse HEAD`
-          DATE=$(TZ=Asia/Seoul date +%Y%m%d-%H%M)
-          DEPLOY_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
-          echo "git_ref=$GIT_REF" >> $GITHUB_OUTPUT
-          echo "date=$DATE" >> $GITHUB_OUTPUT
-          echo "image_tag=$DATE-${GIT_REF:0:10}" >> $GITHUB_OUTPUT
-          echo "deploy_version=$DEPLOY_VERSION" >> $GITHUB_OUTPUT
-          perl -pi -e "s|\"version\": \".*\"|\"version\": \"$DEPLOY_VERSION\"|" package.json || echo not Node.js project
-
-      - name: Notify build start with commit
-        env:
-          GIT_REF: ${{ steps.var.outputs.git_ref }}
-        run: |
-          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
-            {
-              "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
-              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
-            }
-          '
-
-      - name: Get SSH KEY
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        run: |
-          cd ${{ inputs.working_directory }}
-          echo "$SSH_PRIVATE_KEY" > ./ssh_private_key && chmod 600 ./ssh_private_key
-
-      - name: Configure AWS credentialsn for push to ECR
-        uses: aws-actions/configure-aws-credentials@v1-node16
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-          aws-region: ap-northeast-2
-          mask-aws-account-id: false
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Copy Dockerfile
-        run: |
-          cd ${{ inputs.working_directory }}
-          cp ${{ inputs.dockerfile_path }} Dockerfile
-
-      - name: Build, tag, and push image to Amazon ECR
+      - name: Build
         id: build
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ inputs.repository_name }}
-          IMAGE_TAG: ${{ steps.var.outputs.image_tag }}
-          DEPLOY_REF: ${{ steps.var.outputs.git_ref }}
-          DEPLOY_TIME: ${{ steps.var.outputs.date }}
-          DEPLOY_VERSION: ${{ steps.var.outputs.deploy_version }}
-          PORT: ${{ inputs.service_port }}
-          STAGE: ${{ inputs.stage }}
-          SERVICE_NAME: ${{ inputs.service_name }}
-          USER: ${{ inputs.user_name }}
-        run: |
-          cd ${{ inputs.working_directory }}
-          tar ch --exclude node_modules --exclude test --exclude tools --exclude *.test.ts* \
-            --exclude *.stories.tsx --exclude .storybook . |
-            DOCKER_BUILDKIT=1 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            --ssh default=./ssh_private_key \
-            --build-arg STAGE=$STAGE --build-arg PORT=$PORT --build-arg SERVICE_NAME=$SERVICE_NAME \
-            --build-arg DEPLOY_REF=$DEPLOY_REF --build-arg DEPLOY_USER=$USER \
-            --build-arg DEPLOY_TIME=$DEPLOY_TIME --build-arg DEPLOY_VERSION=$DEPLOY_VERSION \
-            -
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Notify build success
-        if: success()
-        env:
-          GIT_REF: ${{ steps.var.outputs.git_ref }}
-        run: |
-          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
-            {
-              "step": "build_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
-              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
-            }
-          '
-
-      - name: Notify build fail
-        if: failure()
-        env:
-          GIT_REF: ${{ steps.var.outputs.git_ref }}
-        run: |
-          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
-            {
-              "step": "build_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
-              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
-            }
-          '
+        uses: croquiscom/github-actions/build-server-service@main
+        with:
+          deployment_uuid: ${{ inputs.deployment_uuid }}
+          working_directory: ${{ inputs.working_directory }}
+          production_branch: ${{ inputs.production_branch }}
+          user_name: ${{ inputs.user_name }}
+          stage: ${{ inputs.stage }}
+          branch: ${{ inputs.branch }}
+          service_name: ${{ inputs.service_name }}
+          service_port: ${{ inputs.service_port }}
+          repository_name: ${{ inputs.repository_name }}
+          dockerfile_path: ${{ inputs.dockerfile_path }}
+          slack_notify_channel: ${{ inputs.slack_notify_channel }}
+          slack_thread_key: ${{ inputs.slack_thread_key }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          RECORD_DEPLOYMENT_STEP_URL: ${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}
+          RECORD_DEPLOYMENT_STEP_TOKEN: ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}
 
     outputs:
-      git_ref: ${{ steps.var.outputs.git_ref }}
+      git_ref: ${{ steps.build.outputs.git_ref }}
       image: ${{ steps.build.outputs.image }}
-      image_tag: ${{ steps.var.outputs.image_tag }}
+      image_tag: ${{ steps.build.outputs.image_tag }}

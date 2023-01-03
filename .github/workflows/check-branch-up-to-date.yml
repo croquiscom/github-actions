@@ -12,15 +12,6 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/github-script@v6
+      - uses: croquiscom/github-actions/check-branch-up-to-date@main
         with:
-          script: |
-            const result = await github.rest.repos.compareCommitsWithBasehead({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              basehead: `${{ inputs.required_branch }}...${context.sha}`,
-            });
-            if (result.data.behind_by === 0) {
-              return;
-            }
-            throw new Error('${{ inputs.required_branch }} not merged');
+          required_branch: ${{ inputs.required_branch }}

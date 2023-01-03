@@ -1,0 +1,23 @@
+name: check branch up to date
+
+inputs:
+  required_branch:
+    description: 배포시 필수적으로 포함해야 할 브랜치 이름
+    required: true
+    type: string
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/github-script@v6
+      with:
+        script: |
+          const result = await github.rest.repos.compareCommitsWithBasehead({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            basehead: `${{ inputs.required_branch }}...${context.sha}`,
+          });
+          if (result.data.behind_by === 0) {
+            return;
+          }
+          throw new Error('${{ inputs.required_branch }} not merged');

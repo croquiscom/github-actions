@@ -1,0 +1,110 @@
+name: deploy to eks
+
+inputs:
+  deployment_uuid:
+    description: 배포 UUID
+    default: ''
+    type: string
+  image_tag:
+    description: 배포할 이미지
+    required: true
+    type: string
+  stage:
+    description: 스테이지
+    type: string
+  service_name:
+    description: 서비스 이름
+    required: true
+    type: string
+  branch:
+    description: 브랜치
+    type: string
+  git_ref:
+    description: 커밋
+    type: string
+  slack_notify_channel:
+    description: 슬랙 알림 채널
+    required: true
+    type: string
+  slack_thread_key:
+    description: 슬랙 메시지 갱신을 위한 키
+    type: string
+  GITHUB_BOT_TOKEN:
+    required: true
+  RECORD_DEPLOYMENT_STEP_URL:
+    required: true
+  RECORD_DEPLOYMENT_STEP_TOKEN:
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Notify deploy start
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "deploy_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
+          }
+        '
+
+    - name: Clone Deploy reposiory
+      uses: actions/checkout@v3
+      with:
+        repository: croquiscom/zigzag-deploy
+        ref: 'main'
+        token: ${{ inputs.GITHUB_BOT_TOKEN }}
+
+    - name: Image Tag Change
+      uses: mikefarah/yq@v4.9.6
+      with:
+        cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services/${{ inputs.service_name }}/values-${{ inputs.stage }}.yaml
+
+    - name: Create Pull Request
+      id: cpr
+      uses: peter-evans/create-pull-request@v4
+      with:
+        token: ${{ inputs.GITHUB_BOT_TOKEN }}
+        author: sre-croquis <sre-croquis@users.noreply.github.com>
+        commit-message: 'deploy: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}'
+        base: main
+        branch: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}
+        title: '[Deploy-${{ inputs.stage }}] zigzag-${{ inputs.service_name }}'
+        body: |
+          ## Service
+          - ${{ inputs.service_name }}
+          ## Stage
+          - ${{ inputs.stage }}
+          ## Docker Image
+          - ${{ inputs.image_tag }}
+        labels: |
+          automerge
+
+    - name: Notify deploy success
+      if: success()
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "deploy_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
+          }
+        '
+
+    - name: Notify deploy fail
+      if: failure()
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "deploy_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
+          }
+        '

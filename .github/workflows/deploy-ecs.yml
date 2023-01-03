@@ -56,74 +56,20 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Notify deploy start
-        run: |
-          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
-            {
-              "step": "deploy_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
-              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
-            }
-          '
-
-      - name: Configure AWS credentialsn for deploying
-        uses: aws-actions/configure-aws-credentials@v1-node16
+      - name: Deploy
+        uses: croquiscom/github-actions/deploy-ecs@main
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_KEY }}
-          aws-region: ap-northeast-2
-
-      - name: Download task definition
-        env:
-          TASK_DEFINITION_NAME: ${{ inputs.task_definition_name }}
-        run: |
-          aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME --query taskDefinition | jq -r 'del(
-            .taskDefinitionArn,
-            .requiresAttributes,
-            .compatibilities,
-            .revision,
-            .status,
-            .registeredAt,
-            .registeredBy
-          )' > task-definition.json
-
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ inputs.task_definition_name }}
+          deployment_uuid: ${{ inputs.deployment_uuid }}
           image: ${{ inputs.image }}
-
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ inputs.service_name }}
-          cluster: ${{ inputs.cluster_name }}
-          wait-for-service-stability: true
-
-      - name: Notify deploy success
-        if: success()
-        run: |
-          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
-            {
-              "step": "deploy_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
-              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
-            }
-          '
-
-      - name: Notify deploy fail
-        if: failure()
-        run: |
-          curl -X POST "${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
-            {
-              "step": "deploy_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-              "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-              "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
-              "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
-            }
-          '
+          stage: ${{ inputs.stage }}
+          cluster_name: ${{ inputs.cluster_name }}
+          service_name: ${{ inputs.service_name }}
+          task_definition_name: ${{ inputs.task_definition_name }}
+          branch: ${{ inputs.branch }}
+          git_ref: ${{ inputs.git_ref }}
+          slack_notify_channel: ${{ inputs.slack_notify_channel }}
+          slack_thread_key: ${{ inputs.slack_thread_key }}
+          AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          RECORD_DEPLOYMENT_STEP_URL: ${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}
+          RECORD_DEPLOYMENT_STEP_TOKEN: ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}

@@ -1,0 +1,193 @@
+name: build server service and push to ecr
+
+inputs:
+  deployment_uuid:
+    description: 배포 UUID
+    default: ''
+    type: string
+  working_directory:
+    description: 작업 디렉토리
+    default: '.'
+    type: string
+  production_branch:
+    description: 운영 환경 배포를 하는 브랜치
+    required: true
+    type: string
+  user_name:
+    description: 배포한 사용자
+    required: true
+    type: string
+  stage:
+    description: 스테이지
+    required: true
+    type: string
+  branch:
+    description: 브랜치
+    required: true
+    type: string
+  service_name:
+    description: 서비스 이름
+    required: true
+    type: string
+  service_port:
+    description: 서비스 포트
+    required: true
+    type: string
+  repository_name:
+    description: 이미지를 올릴 ECR 이름
+    required: true
+    type: string
+  dockerfile_path:
+    description: Dockerfile 경로
+    required: true
+    type: string
+  slack_notify_channel:
+    description: 슬랙 알림 채널
+    required: true
+    type: string
+  slack_thread_key:
+    description: 슬랙 메시지 갱신을 위한 키
+    required: true
+    type: string
+  AWS_ACCESS_KEY:
+    required: true
+  AWS_SECRET_KEY:
+    required: true
+  SSH_PRIVATE_KEY:
+    required: true
+  RECORD_DEPLOYMENT_STEP_URL:
+    required: true
+  RECORD_DEPLOYMENT_STEP_TOKEN:
+    required: true
+
+outputs:
+  git_ref:
+    value: ${{ steps.var.outputs.git_ref }}
+  image:
+    value: ${{ steps.build.outputs.image }}
+  image_tag:
+    value: ${{ steps.var.outputs.image_tag }}
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: croquiscom/github-actions/check-branch-up-to-date@main
+      with:
+        required_branch: ${{ inputs.production_branch }}
+
+    - name: Check branch is production branch (production)
+      shell: bash
+      run: exit 255
+      if: (inputs.stage == 'production' || inputs.stage == 'beta-rc') && inputs.branch != inputs.production_branch
+
+    - name: Get variables
+      id: var
+      shell: bash
+      run: |
+        cd ${{ inputs.working_directory }}
+        GIT_REF=`git rev-parse HEAD`
+        DATE=$(TZ=Asia/Seoul date +%Y%m%d-%H%M)
+        DEPLOY_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
+        echo "git_ref=$GIT_REF" >> $GITHUB_OUTPUT
+        echo "date=$DATE" >> $GITHUB_OUTPUT
+        echo "image_tag=$DATE-${GIT_REF:0:10}" >> $GITHUB_OUTPUT
+        echo "deploy_version=$DEPLOY_VERSION" >> $GITHUB_OUTPUT
+        perl -pi -e "s|\"version\": \".*\"|\"version\": \"$DEPLOY_VERSION\"|" package.json || echo not Node.js project
+
+    - name: Notify build start with commit
+      env:
+        GIT_REF: ${{ steps.var.outputs.git_ref }}
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
+          }
+        '
+
+    - name: Get SSH KEY
+      env:
+        SSH_PRIVATE_KEY: ${{ inputs.SSH_PRIVATE_KEY }}
+      shell: bash
+      run: |
+        cd ${{ inputs.working_directory }}
+        echo "$SSH_PRIVATE_KEY" > ./ssh_private_key && chmod 600 ./ssh_private_key
+
+    - name: Configure AWS credentialsn for push to ECR
+      uses: aws-actions/configure-aws-credentials@v1-node16
+      with:
+        aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY }}
+        aws-secret-access-key: ${{ inputs.AWS_SECRET_KEY }}
+        aws-region: ap-northeast-2
+        mask-aws-account-id: false
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Copy Dockerfile
+      shell: bash
+      run: |
+        cd ${{ inputs.working_directory }}
+        cp ${{ inputs.dockerfile_path }} Dockerfile
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ inputs.repository_name }}
+        IMAGE_TAG: ${{ steps.var.outputs.image_tag }}
+        DEPLOY_REF: ${{ steps.var.outputs.git_ref }}
+        DEPLOY_TIME: ${{ steps.var.outputs.date }}
+        DEPLOY_VERSION: ${{ steps.var.outputs.deploy_version }}
+        PORT: ${{ inputs.service_port }}
+        STAGE: ${{ inputs.stage }}
+        SERVICE_NAME: ${{ inputs.service_name }}
+        USER: ${{ inputs.user_name }}
+      shell: bash
+      run: |
+        cd ${{ inputs.working_directory }}
+        tar ch --exclude test --exclude tools --exclude *.test.ts* \
+          --exclude *.stories.tsx --exclude .storybook . |
+          DOCKER_BUILDKIT=1 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+          --ssh default=./ssh_private_key \
+          --build-arg STAGE=$STAGE --build-arg PORT=$PORT --build-arg SERVICE_NAME=$SERVICE_NAME \
+          --build-arg DEPLOY_REF=$DEPLOY_REF --build-arg DEPLOY_USER=$USER \
+          --build-arg DEPLOY_TIME=$DEPLOY_TIME --build-arg DEPLOY_VERSION=$DEPLOY_VERSION \
+          -
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    - name: Notify build success
+      if: success()
+      env:
+        GIT_REF: ${{ steps.var.outputs.git_ref }}
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "build_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
+          }
+        '
+
+    - name: Notify build fail
+      if: failure()
+      env:
+        GIT_REF: ${{ steps.var.outputs.git_ref }}
+      shell: bash
+      run: |
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "build_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
+          }
+        '
