@@ -150,8 +150,8 @@ runs:
       shell: bash
       run: |
         cd ${{ inputs.working_directory }}
-        tar ch --exclude test --exclude tools --exclude *.test.ts* \
-          --exclude *.stories.tsx --exclude .storybook . |
+        rm -rf tools */tools
+        tar c --exclude test --exclude *.test.ts* --exclude *.stories.tsx --exclude .storybook . |
           DOCKER_BUILDKIT=1 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
           --ssh default=./ssh_private_key \
           --build-arg STAGE=$STAGE --build-arg PORT=$PORT --build-arg SERVICE_NAME=$SERVICE_NAME \
