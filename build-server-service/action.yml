@@ -97,12 +97,13 @@ runs:
     - name: Notify build start with commit
       env:
         GIT_REF: ${{ steps.var.outputs.git_ref }}
+        IMAGE_TAG: ${{ steps.var.outputs.image_tag }}
       shell: bash
       run: |
         curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
           {
             "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}", "image_tag": "${{ env.IMAGE_TAG }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
           }
@@ -166,12 +167,13 @@ runs:
       if: success()
       env:
         GIT_REF: ${{ steps.var.outputs.git_ref }}
+        IMAGE_TAG: ${{ steps.var.outputs.image_tag }}
       shell: bash
       run: |
         curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
           {
             "step": "build_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}", "image_tag": "${{ env.IMAGE_TAG }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
           }
@@ -181,12 +183,13 @@ runs:
       if: failure()
       env:
         GIT_REF: ${{ steps.var.outputs.git_ref }}
+        IMAGE_TAG: ${{ steps.var.outputs.image_tag }}
       shell: bash
       run: |
         curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
           {
             "step": "build_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
-            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}", "image_tag": "${{ env.IMAGE_TAG }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
           }
