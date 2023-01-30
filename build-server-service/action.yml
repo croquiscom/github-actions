@@ -122,7 +122,7 @@ runs:
         cd ${{ inputs.working_directory }}
         echo "$SSH_PRIVATE_KEY" > ./ssh_private_key && chmod 600 ./ssh_private_key
 
-    - name: Configure AWS credentialsn for push to ECR
+    - name: Configure AWS credentials for push to ECR
       uses: aws-actions/configure-aws-credentials@v1-node16
       with:
         aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY }}

@@ -61,7 +61,7 @@ runs:
           }
         '
 
-    - name: Configure AWS credentialsn for deploying
+    - name: Configure AWS credentials for deploying
       uses: aws-actions/configure-aws-credentials@v1-node16
       with:
         aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY }}
