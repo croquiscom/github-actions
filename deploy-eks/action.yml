@@ -46,6 +46,7 @@ runs:
           {
             "step": "deploy_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "image_tag": "${{ inputs.image_tag }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
           }
@@ -71,7 +72,7 @@ runs:
         author: sre-croquis <sre-croquis@users.noreply.github.com>
         commit-message: 'deploy: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}'
         base: main
-        branch: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}
+        branch: GA_${{ inputs.stage }}_${{ inputs.service_name }}_${{ inputs.image_tag }}
         title: '[Deploy-${{ inputs.stage }}] zigzag-${{ inputs.service_name }}'
         body: |
           ## Service
@@ -91,6 +92,7 @@ runs:
           {
             "step": "deploy_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "image_tag": "${{ inputs.image_tag }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
           }
@@ -104,6 +106,7 @@ runs:
           {
             "step": "deploy_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "image_tag": "${{ inputs.image_tag }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
           }

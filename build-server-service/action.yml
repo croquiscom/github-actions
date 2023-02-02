@@ -108,7 +108,7 @@ runs:
           {
             "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-            "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}", 
+            "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
           }
@@ -179,7 +179,7 @@ runs:
           {
             "step": "build_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-            "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}", 
+            "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
           }
@@ -196,7 +196,7 @@ runs:
           {
             "step": "build_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
-            "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}", 
+            "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
           }
