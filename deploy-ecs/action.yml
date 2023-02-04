@@ -5,6 +5,10 @@ inputs:
     description: 배포 UUID
     default: ''
     type: string
+  release_message:
+    description: 릴리즈 메시지
+    default: ''
+    type: string
   image:
     description: 배포할 이미지
     required: true
@@ -56,6 +60,7 @@ runs:
           {
             "step": "deploy_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "release_message": ${{ toJSON(inputs.release_message) }}, "image_tag": "${{ inputs.image_tag }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
           }
@@ -107,6 +112,7 @@ runs:
           {
             "step": "deploy_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "release_message": ${{ toJSON(inputs.release_message) }}, "image_tag": "${{ inputs.image_tag }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
           }
@@ -120,6 +126,7 @@ runs:
           {
             "step": "deploy_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "release_message": ${{ toJSON(inputs.release_message) }}, "image_tag": "${{ inputs.image_tag }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
           }

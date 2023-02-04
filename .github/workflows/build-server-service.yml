@@ -7,6 +7,10 @@ on:
         description: 배포 UUID
         default: ''
         type: string
+      release_message:
+        description: 릴리즈 메시지
+        default: ''
+        type: string
       working_directory:
         description: 작업 디렉토리
         default: '.'
@@ -71,6 +75,8 @@ on:
         value: ${{ jobs.build.outputs.image }}
       image_tag:
         value: ${{ jobs.build.outputs.image_tag }}
+      release_message:
+        value: ${{ jobs.build.outputs.release_message }}
 
 jobs:
   build:
@@ -89,6 +95,7 @@ jobs:
             {
               "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
               "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+              "release_message": ${{ toJSON(inputs.release_message) }},
               "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
               "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": ""
             }
@@ -104,6 +111,7 @@ jobs:
         uses: croquiscom/github-actions/build-server-service@main
         with:
           deployment_uuid: ${{ inputs.deployment_uuid }}
+          release_message: ${{ inputs.release_message }}
           working_directory: ${{ inputs.working_directory }}
           production_branch: ${{ inputs.production_branch }}
           user_name: ${{ inputs.user_name }}
@@ -126,3 +134,4 @@ jobs:
       git_ref: ${{ steps.build.outputs.git_ref }}
       image: ${{ steps.build.outputs.image }}
       image_tag: ${{ steps.build.outputs.image_tag }}
+      release_message: ${{ steps.build.outputs.release_message }}

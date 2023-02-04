@@ -5,6 +5,10 @@ inputs:
     description: 배포 UUID
     default: ''
     type: string
+  release_message:
+    description: 릴리즈 메시지
+    default: ''
+    type: string
   working_directory:
     description: 작업 디렉토리
     default: '.'
@@ -69,6 +73,8 @@ outputs:
     value: ${{ steps.var.outputs.image }}
   image_tag:
     value: ${{ steps.var.outputs.image_tag }}
+  release_message:
+    value: ${{ steps.var.outputs.release_message }}
 
 runs:
   using: 'composite'
@@ -110,11 +116,14 @@ runs:
           IMAGE_TAG=$DATE-${GIT_REF:0:10}
         fi
         DEPLOY_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
+        RELEASE_MESSAGE="${{ inputs.release_message }}"
+        RELEASE_MESSAGE=${RELEASE_MESSAGE:-$(git log -1 --pretty=%s)}
         echo "git_ref=$GIT_REF" >> $GITHUB_OUTPUT
         echo "date=$DATE" >> $GITHUB_OUTPUT
         echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
         echo "deploy_version=$DEPLOY_VERSION" >> $GITHUB_OUTPUT
+        echo "release_message=$RELEASE_MESSAGE" >> $GITHUB_OUTPUT
         perl -pi -e "s|\"version\": \".*\"|\"version\": \"$DEPLOY_VERSION\"|" package.json || echo not Node.js project
 
     - name: Notify build start with commit
@@ -127,6 +136,7 @@ runs:
           {
             "step": "build_start", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "release_message": ${{ toJSON(steps.var.outputs.release_message) }},
             "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
@@ -202,6 +212,7 @@ runs:
           {
             "step": "build_success", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "release_message": ${{ toJSON(steps.var.outputs.release_message) }},
             "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"
@@ -219,6 +230,7 @@ runs:
           {
             "step": "build_fail", "user_name": "${{ inputs.user_name }}", "actor": "${{ github.actor }}",
             "deployment_uuid": "${{ inputs.deployment_uuid }}", "github_workflow_run_id": "${{ github.run_id }}",
+            "release_message": ${{ toJSON(steps.var.outputs.release_message) }},
             "image_tag": "${{ env.IMAGE_TAG }}", "port": "${{ inputs.service_port }}",
             "slack_thread_key": "${{ inputs.slack_thread_key }}", "slack_notify_channel": "${{ inputs.slack_notify_channel }}",
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ env.GIT_REF }}"

@@ -7,6 +7,10 @@ on:
         description: 배포 UUID
         default: ''
         type: string
+      release_message:
+        description: 릴리즈 메시지
+        default: ''
+        type: string
       image_tag:
         description: 배포할 이미지
         required: true
@@ -50,6 +54,7 @@ jobs:
         uses: croquiscom/github-actions/deploy-eks@main
         with:
           deployment_uuid: ${{ inputs.deployment_uuid }}
+          release_message: ${{ inputs.release_message }}
           image_tag: ${{ inputs.image_tag }}
           stage: ${{ inputs.stage }}
           service_name: ${{ inputs.service_name }}
