@@ -60,7 +60,7 @@ runs:
         token: ${{ inputs.GITHUB_BOT_TOKEN }}
 
     - name: Image Tag Change
-      uses: mikefarah/yq@v4.9.6
+      uses: mikefarah/yq@master
       with:
         cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services/${{ inputs.service_name }}/values-${{ inputs.stage }}.yaml
 

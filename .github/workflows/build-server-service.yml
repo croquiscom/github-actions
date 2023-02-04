@@ -39,9 +39,11 @@ on:
         description: 이미지를 올릴 ECR 이름
         required: true
         type: string
+      build_script_path:
+        description: 커스텀 빌드 스크립트
+        type: string
       dockerfile_path:
         description: Dockerfile 경로
-        required: true
         type: string
       slack_notify_channel:
         description: 슬랙 알림 채널
@@ -110,6 +112,7 @@ jobs:
           service_name: ${{ inputs.service_name }}
           service_port: ${{ inputs.service_port }}
           repository_name: ${{ inputs.repository_name }}
+          build_script_path: ${{ inputs.build_script_path }}
           dockerfile_path: ${{ inputs.dockerfile_path }}
           slack_notify_channel: ${{ inputs.slack_notify_channel }}
           slack_thread_key: ${{ inputs.slack_thread_key }}

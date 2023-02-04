@@ -37,9 +37,11 @@ inputs:
     description: 이미지를 올릴 ECR 이름
     required: true
     type: string
+  build_script_path:
+    description: 커스텀 빌드 스크립트
+    type: string
   dockerfile_path:
     description: Dockerfile 경로
-    required: true
     type: string
   slack_notify_channel:
     description: 슬랙 알림 채널
@@ -64,7 +66,7 @@ outputs:
   git_ref:
     value: ${{ steps.var.outputs.git_ref }}
   image:
-    value: ${{ steps.build.outputs.image }}
+    value: ${{ steps.var.outputs.image }}
   image_tag:
     value: ${{ steps.var.outputs.image_tag }}
 
@@ -80,21 +82,38 @@ runs:
       run: exit 255
       if: (inputs.stage == 'production' || inputs.stage == 'beta-rc') && inputs.branch != inputs.production_branch
 
+    - name: Configure AWS credentials for push to ECR
+      uses: aws-actions/configure-aws-credentials@v1-node16
+      with:
+        aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY }}
+        aws-secret-access-key: ${{ inputs.AWS_SECRET_KEY }}
+        aws-region: ap-northeast-2
+        mask-aws-account-id: false
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
     - name: Get variables
       id: var
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ inputs.repository_name }}
       shell: bash
       run: |
         cd ${{ inputs.working_directory }}
         GIT_REF=`git rev-parse HEAD`
         DATE=$(TZ=Asia/Seoul date +%Y%m%d-%H%M)
+        if [[ "${{ inputs.stage }}" == dev-e-* ]]; then
+          IMAGE_TAG=${{ inputs.service_name }}-$DATE-${GIT_REF:0:10}
+        else
+          IMAGE_TAG=$DATE-${GIT_REF:0:10}
+        fi
         DEPLOY_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
         echo "git_ref=$GIT_REF" >> $GITHUB_OUTPUT
         echo "date=$DATE" >> $GITHUB_OUTPUT
-        if [[ "${{ inputs.stage }}" == dev-e-* ]]; then
-          echo "image_tag=${{ inputs.service_name }}-$DATE-${GIT_REF:0:10}" >> $GITHUB_OUTPUT
-        else
-          echo "image_tag=$DATE-${GIT_REF:0:10}" >> $GITHUB_OUTPUT
-        fi
+        echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
         echo "deploy_version=$DEPLOY_VERSION" >> $GITHUB_OUTPUT
         perl -pi -e "s|\"version\": \".*\"|\"version\": \"$DEPLOY_VERSION\"|" package.json || echo not Node.js project
 
@@ -122,26 +141,8 @@ runs:
         cd ${{ inputs.working_directory }}
         echo "$SSH_PRIVATE_KEY" > ./ssh_private_key && chmod 600 ./ssh_private_key
 
-    - name: Configure AWS credentials for push to ECR
-      uses: aws-actions/configure-aws-credentials@v1-node16
-      with:
-        aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY }}
-        aws-secret-access-key: ${{ inputs.AWS_SECRET_KEY }}
-        aws-region: ap-northeast-2
-        mask-aws-account-id: false
-
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Copy Dockerfile
-      shell: bash
-      run: |
-        cd ${{ inputs.working_directory }}
-        cp ${{ inputs.dockerfile_path }} Dockerfile
-
-    - name: Build, tag, and push image to Amazon ECR
-      id: build
+    - name: Build, tag, and push image to Amazon ECR (Build script)
+      if: inputs.build_script_path != ''
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ inputs.repository_name }}
@@ -156,6 +157,29 @@ runs:
       shell: bash
       run: |
         cd ${{ inputs.working_directory }}
+        ECR_REGISTRY=$ECR_REGISTRY ECR_REPOSITORY=$ECR_REPOSITORY IMAGE_TAG=$IMAGE_TAG \
+        STAGE=$STAGE PORT=$PORT SERVICE_NAME=$SERVICE_NAME \
+        DEPLOY_REF=$DEPLOY_REF DEPLOY_USER=$USER \
+        DEPLOY_TIME=$DEPLOY_TIME DEPLOY_VERSION=$DEPLOY_VERSION \
+          ./${{ inputs.build_script_path }}
+
+    - name: Build, tag, and push image to Amazon ECR (Dockerfile)
+      if: inputs.dockerfile_path != ''
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ inputs.repository_name }}
+        IMAGE_TAG: ${{ steps.var.outputs.image_tag }}
+        DEPLOY_REF: ${{ steps.var.outputs.git_ref }}
+        DEPLOY_TIME: ${{ steps.var.outputs.date }}
+        DEPLOY_VERSION: ${{ steps.var.outputs.deploy_version }}
+        PORT: ${{ inputs.service_port }}
+        STAGE: ${{ inputs.stage }}
+        SERVICE_NAME: ${{ inputs.service_name }}
+        USER: ${{ inputs.user_name }}
+      shell: bash
+      run: |
+        cd ${{ inputs.working_directory }}
+        cp ${{ inputs.dockerfile_path }} Dockerfile
         rm -rf tools */tools
         tar c --exclude test --exclude *.test.ts* --exclude *.stories.tsx --exclude .storybook . |
           DOCKER_BUILDKIT=1 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
@@ -166,7 +190,6 @@ runs:
           -
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
     - name: Notify build success
       if: success()
