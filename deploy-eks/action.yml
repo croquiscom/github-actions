@@ -68,25 +68,17 @@ runs:
       with:
         cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services/${{ inputs.service_name }}/values-${{ inputs.stage }}.yaml
 
-    - name: Create Pull Request
-      id: cpr
-      uses: peter-evans/create-pull-request@v4
-      with:
-        token: ${{ inputs.GITHUB_BOT_TOKEN }}
-        author: sre-croquis <sre-croquis@users.noreply.github.com>
-        commit-message: 'deploy: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}'
-        base: main
-        branch: GA_${{ inputs.stage }}_${{ inputs.service_name }}_${{ inputs.image_tag }}
-        title: '[Deploy-${{ inputs.stage }}] zigzag-${{ inputs.service_name }}'
-        body: |
-          ## Service
-          - ${{ inputs.service_name }}
-          ## Stage
-          - ${{ inputs.stage }}
-          ## Docker Image
-          - ${{ inputs.image_tag }}
-        labels: |
-          automerge
+    - name: Commit and Push
+      shell: bash
+      run: |
+        git config user.email "sre-croquis@users.noreply.github.com"
+        git config user.name "sre-croquis"
+        git commit -a \
+          -m 'deploy: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}' \
+          || { echo "No changes"; exit 100; }
+        git push && { echo "Success"; exit 0; }
+        git fetch && git rebase origin/main
+        git push && { echo "Success"; exit 0; } || { echo "Failed"; exit 200; }
 
     - name: Notify deploy success
       if: success()
