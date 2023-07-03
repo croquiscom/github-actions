@@ -77,6 +77,13 @@ runs:
           -m 'deploy: ${{ inputs.stage }}-zigzag-${{ inputs.service_name }}-${{ inputs.image_tag }}' \
           || { echo "No changes"; exit 100; }
         git push && { echo "Success"; exit 0; }
+        sleep $((RANDOM % 4))
+        git fetch && git rebase origin/main
+        git push && { echo "Success"; exit 0; }
+        sleep $((RANDOM % 10))
+        git fetch && git rebase origin/main
+        git push && { echo "Success"; exit 0; }
+        sleep $((RANDOM % 20))
         git fetch && git rebase origin/main
         git push && { echo "Success"; exit 0; } || { echo "Failed"; exit 200; }
 
