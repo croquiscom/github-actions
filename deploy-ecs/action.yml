@@ -53,6 +53,12 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Show inputs
+      env:
+        OUTPUTS: ${{ toJSON(inputs) }}
+      shell: bash
+      run: echo $OUTPUTS
+
     - name: Notify deploy start
       shell: bash
       run: |

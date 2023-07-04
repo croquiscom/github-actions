@@ -79,6 +79,12 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Show inputs
+      env:
+        OUTPUTS: ${{ toJSON(inputs) }}
+      shell: bash
+      run: echo $OUTPUTS
+
     - uses: croquiscom/github-actions/check-branch-up-to-date@main
       with:
         required_branch: ${{ inputs.production_branch }}
