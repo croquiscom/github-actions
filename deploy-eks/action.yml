@@ -13,6 +13,10 @@ inputs:
     description: 배포할 이미지
     required: true
     type: string
+  user_name:
+    description: 배포한 사용자
+    required: false
+    type: string
   stage:
     description: 스테이지
     type: string

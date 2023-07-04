@@ -15,6 +15,10 @@ on:
         description: 배포할 이미지
         required: true
         type: string
+      user_name:
+        description: 배포한 사용자
+        required: false
+        type: string
       stage:
         description: 스테이지
         type: string
@@ -66,6 +70,7 @@ jobs:
           deployment_uuid: ${{ inputs.deployment_uuid }}
           release_message: ${{ inputs.release_message }}
           image: ${{ inputs.image }}
+          user_name: ${{ inputs.user_name }}
           stage: ${{ inputs.stage }}
           cluster_name: ${{ inputs.cluster_name }}
           service_name: ${{ inputs.service_name }}
