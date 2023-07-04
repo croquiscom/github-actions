@@ -110,6 +110,12 @@ runs:
             "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}", "branch": "${{ inputs.branch }}", "git_ref": "${{ inputs.git_ref }}"
           }
         '
+        curl -X POST "${{ inputs.RECORD_DEPLOYMENT_STEP_URL }}" -H 'Authorization: Bearer ${{ inputs.RECORD_DEPLOYMENT_STEP_TOKEN }}' -H 'Content-Type: application/json' --data-raw '
+          {
+            "step": "argocd_sync_ready", "image_tag": "${{ inputs.image_tag }}",
+            "stage": "${{ inputs.stage }}", "service_name": "${{ inputs.service_name }}"
+          }
+        '
 
     - name: Notify deploy fail
       if: failure()
