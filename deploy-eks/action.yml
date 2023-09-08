@@ -37,6 +37,11 @@ inputs:
   slack_thread_key:
     description: 슬랙 메시지 갱신을 위한 키
     type: string
+  deploy_auto_commit:
+    description: zizgag-deploy 에 image 교체 알림을 할것인가
+    required: false
+    default: 'true'
+    type: string
   GITHUB_BOT_TOKEN:
     required: true
   RECORD_DEPLOYMENT_STEP_URL:
@@ -79,6 +84,7 @@ runs:
         cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services/${{ inputs.service_name }}/values-${{ inputs.stage }}.yaml
 
     - name: Commit and Push
+      if: inputs.deploy_auto_commit == 'true'
       shell: bash
       run: |
         git config user.email "sre-croquis@users.noreply.github.com"
