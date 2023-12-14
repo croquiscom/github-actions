@@ -204,6 +204,7 @@ runs:
           --build-arg STAGE=$STAGE --build-arg PORT=$PORT --build-arg SERVICE_NAME=$SERVICE_NAME \
           --build-arg DEPLOY_REF=$DEPLOY_REF --build-arg DEPLOY_USER=$USER \
           --build-arg DEPLOY_TIME=$DEPLOY_TIME --build-arg DEPLOY_VERSION=$DEPLOY_VERSION \
+          --build-arg IMAGE_TAG=$IMAGE_TAG \
           -
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
