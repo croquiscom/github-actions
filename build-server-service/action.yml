@@ -116,12 +116,12 @@ runs:
         cd ${{ inputs.working_directory }}
         GIT_REF=`git rev-parse HEAD`
         DATE=$(TZ=Asia/Seoul date +%Y%m%d-%H%M)
-        if [[ "${{ inputs.stage }}" == dev-e-* ]]; then
-          IMAGE_TAG=${{ inputs.service_name }}-$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
-        else
-          IMAGE_TAG=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
-        fi
         DEPLOY_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
+        if [[ "${{ inputs.stage }}" == dev-e-* ]]; then
+          IMAGE_TAG=${{ inputs.service_name }}-$DEPLOY_VERSION
+        else
+          IMAGE_TAG=$DEPLOY_VERSION
+        fi
         RELEASE_MESSAGE="${{ inputs.release_message }}"
         RELEASE_MESSAGE=${RELEASE_MESSAGE:-$(git log -1 --pretty=%s)}
         echo "git_ref=$GIT_REF" >> $GITHUB_OUTPUT
