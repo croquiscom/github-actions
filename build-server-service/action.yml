@@ -65,6 +65,8 @@ inputs:
     required: true
   RECORD_DEPLOYMENT_STEP_TOKEN:
     required: true
+  BUILD_SCRIPT_EXTRA:
+    type: string
 
 outputs:
   git_ref:
@@ -170,6 +172,7 @@ runs:
         STAGE: ${{ inputs.stage }}
         SERVICE_NAME: ${{ inputs.service_name }}
         USER: ${{ inputs.user_name }}
+        BUILD_SCRIPT_EXTRA: ${{ inputs.BUILD_SCRIPT_EXTRA }}
       shell: bash
       run: |
         cd ${{ inputs.working_directory }}
@@ -177,6 +180,7 @@ runs:
         STAGE=$STAGE PORT=$PORT SERVICE_NAME=$SERVICE_NAME \
         DEPLOY_REF=$DEPLOY_REF DEPLOY_USER=$USER \
         DEPLOY_TIME=$DEPLOY_TIME DEPLOY_VERSION=$DEPLOY_VERSION \
+        BUILD_SCRIPT_EXTRA=$BUILD_SCRIPT_EXTRA \
           ./${{ inputs.build_script_path }}
 
     - name: Build, tag, and push image to Amazon ECR (Dockerfile)
