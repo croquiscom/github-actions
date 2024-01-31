@@ -17,6 +17,9 @@ inputs:
     description: 운영 환경 배포를 하는 브랜치
     required: true
     type: string
+  check_alpha_beta_branch:
+    description: 알파, 베타 브랜치 체크 여부
+    type: string
   user_name:
     description: 배포한 사용자
     required: true
@@ -93,8 +96,18 @@ runs:
 
     - name: Check branch is production branch (production)
       shell: bash
-      run: exit 255
+      run: echo "::error::only ${{ inputs.production_branch }} branch allowed for production" && exit 255
       if: (inputs.stage == 'production' || inputs.stage == 'beta-rc') && inputs.branch != inputs.production_branch
+
+    - name: Check branch is alpha branch (alpha)
+      shell: bash
+      run: echo "::error::only alpha branch allowed for alpha" && exit 255
+      if: inputs.check_alpha_beta_branch == 'true' && inputs.stage == 'alpha' && inputs.branch != 'alpha'
+
+    - name: Check branch is beta branch (beta)
+      shell: bash
+      run: echo "::error::only beta branch allowed for beta" && exit 255
+      if: inputs.check_alpha_beta_branch == 'true' && inputs.stage == 'beta' && inputs.branch != 'beta'
 
     - name: Configure AWS credentials for push to ECR
       uses: aws-actions/configure-aws-credentials@v1-node16
