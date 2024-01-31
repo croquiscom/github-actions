@@ -39,6 +39,8 @@ on:
       slack_thread_key:
         description: 슬랙 메시지 갱신을 위한 키
         type: string
+      change_image_yq_command:
+        type: string
     secrets:
       GITHUB_BOT_TOKEN:
         required: true
@@ -67,6 +69,7 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
           slack_notify_channel: ${{ inputs.slack_notify_channel }}
           slack_thread_key: ${{ inputs.slack_thread_key }}
+          change_image_yq_command: ${{ inputs.change_image_yq_command }}
           GITHUB_BOT_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
           RECORD_DEPLOYMENT_STEP_URL: ${{ secrets.RECORD_DEPLOYMENT_STEP_URL }}
           RECORD_DEPLOYMENT_STEP_TOKEN: ${{ secrets.RECORD_DEPLOYMENT_STEP_TOKEN }}
