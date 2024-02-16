@@ -93,6 +93,7 @@ runs:
     - uses: croquiscom/github-actions/check-branch-up-to-date@main
       with:
         required_branch: ${{ inputs.production_branch }}
+        check_branch: ${{ inputs.branch }}
 
     - name: Check branch is production branch (production)
       shell: bash

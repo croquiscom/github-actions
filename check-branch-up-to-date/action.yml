@@ -5,6 +5,9 @@ inputs:
     description: 배포시 필수적으로 포함해야 할 브랜치 이름
     required: true
     type: string
+  check_branch:
+    description: 검증이 필요한 브랜치 이름
+    type: string
 
 runs:
   using: 'composite'
@@ -12,12 +15,14 @@ runs:
     - uses: actions/github-script@v6
       with:
         script: |
+          const required_branch = '${{ inputs.required_branch }}';
+          const check_branch = '${{ inputs.check_branch }}';
           const result = await github.rest.repos.compareCommitsWithBasehead({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            basehead: `${{ inputs.required_branch }}...${context.sha}`,
+            basehead: `${required_branch}...${check_branch || context.sha}`,
           });
           if (result.data.behind_by === 0) {
             return;
           }
-          throw new Error('${{ inputs.required_branch }} not merged');
+          throw new Error(`${required_branch} not merged`);
