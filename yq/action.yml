@@ -1,0 +1,11 @@
+name: yq
+
+inputs:
+  cmd:
+    required: true
+
+runs:
+  using: docker
+  image: Dockerfile
+  args:
+    - ${{ inputs.cmd }}
