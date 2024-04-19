@@ -26,6 +26,10 @@ on:
         description: 서비스 이름
         required: true
         type: string
+      service_name_istio:
+        description: 서비스 이름
+        required: false
+        type: string
       branch:
         description: 브랜치
         type: string
@@ -65,6 +69,7 @@ jobs:
           user_name: ${{ inputs.user_name }}
           stage: ${{ inputs.stage }}
           service_name: ${{ inputs.service_name }}
+          service_name_istio: ${{ inputs.service_name_istio }}
           branch: ${{ inputs.branch }}
           git_ref: ${{ inputs.git_ref }}
           slack_notify_channel: ${{ inputs.slack_notify_channel }}
