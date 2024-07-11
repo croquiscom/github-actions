@@ -22,6 +22,9 @@ on:
       check_alpha_beta_branch:
         description: 알파, 베타 브랜치 체크 여부
         type: string
+      skip_check_branch_up_to_date:
+        description: 브랜치에 최신 커밋이 반영되어 있는지 체크 생략 여부
+        type: string
       user_name:
         description: 배포한 사용자
         required: true
@@ -126,6 +129,7 @@ jobs:
           working_directory: ${{ inputs.working_directory }}
           production_branch: ${{ inputs.production_branch }}
           check_alpha_beta_branch: ${{ inputs.check_alpha_beta_branch }}
+          skip_check_branch_up_to_date: ${{ inputs.skip_check_branch_up_to_date }}
           user_name: ${{ inputs.user_name }}
           stage: ${{ inputs.stage }}
           branch: ${{ inputs.branch }}
