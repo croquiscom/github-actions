@@ -81,7 +81,7 @@ runs:
 
     - name: Change image tag
       uses: croquiscom/github-actions/yq@main
-      if: inputs.change_image_yq_command == ''
+      if: inputs.change_image_yq_command == '' && (inputs.stage == 'beta' || inputs.stage == 'beta-rc')
       with:
         cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services/${{ inputs.service_name }}/values-${{ inputs.stage }}.yaml
 
