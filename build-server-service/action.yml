@@ -1,6 +1,11 @@
 name: build server service and push to ecr
 
 inputs:
+  arch:
+    description: 아키텍처
+    required: true
+    type: string
+    default: 'amd64'
   deployment_uuid:
     description: 배포 UUID
     default: ''
@@ -136,7 +141,8 @@ runs:
         cd ${{ inputs.working_directory }}
         GIT_REF=`git rev-parse HEAD`
         DATE=$(TZ=Asia/Seoul date +%Y%m%d-%H%M)
-        DEPLOY_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
+        INDEX_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
+        DEPLOY_VERSION=$INDEX_VERSION-${{ inputs.arch }}
         if [[ "${{ inputs.stage }}" == dev-e-* ]]; then
           IMAGE_TAG=${{ inputs.service_name }}-$DEPLOY_VERSION
         else
@@ -146,10 +152,12 @@ runs:
         RELEASE_MESSAGE=${RELEASE_MESSAGE:-$(git log -1 --pretty=%s)}
         echo "git_ref=$GIT_REF" >> $GITHUB_OUTPUT
         echo "date=$DATE" >> $GITHUB_OUTPUT
+        echo "image_endpoint=$ECR_REGISTRY/$ECR_REPOSITORY" >> $GITHUB_OUTPUT
         echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
         echo "deploy_version=$DEPLOY_VERSION" >> $GITHUB_OUTPUT
         echo "release_message=$RELEASE_MESSAGE" >> $GITHUB_OUTPUT
+        echo "index_version=$INDEX_VERSION" >> $GITHUB_OUTPUT
         perl -pi -e "s|\"version\": \".*\"|\"version\": \"$DEPLOY_VERSION\"|" package.json || echo not Node.js project
 
     - name: Notify build start with commit
