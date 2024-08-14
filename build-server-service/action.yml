@@ -5,7 +5,7 @@ inputs:
     description: 아키텍처
     required: true
     type: string
-    default: 'amd64'
+    default: 'common'
   deployment_uuid:
     description: 배포 UUID
     default: ''
@@ -199,6 +199,7 @@ runs:
         SERVICE_NAME: ${{ inputs.service_name }}
         USER: ${{ inputs.user_name }}
         BUILD_SCRIPT_EXTRA: ${{ inputs.BUILD_SCRIPT_EXTRA }}
+        ARCH: ${{ inputs.arch }}
       shell: bash
       run: |
         cd ${{ inputs.working_directory }}
@@ -207,6 +208,7 @@ runs:
         DEPLOY_REF=$DEPLOY_REF DEPLOY_USER=$USER \
         DEPLOY_TIME=$DEPLOY_TIME DEPLOY_VERSION=$DEPLOY_VERSION \
         BUILD_SCRIPT_EXTRA=$BUILD_SCRIPT_EXTRA \
+        ARCH=$ARCH \
           ./${{ inputs.build_script_path }}
 
     - name: Build, tag, and push image to Amazon ECR (Dockerfile)
@@ -222,6 +224,7 @@ runs:
         STAGE: ${{ inputs.stage }}
         SERVICE_NAME: ${{ inputs.service_name }}
         USER: ${{ inputs.user_name }}
+        ARCH: ${{ inputs.arch }}
       shell: bash
       run: |
         cd ${{ inputs.working_directory }}
@@ -229,15 +232,24 @@ runs:
         cp __Dockerfile_temp Dockerfile
         rm -rf tools */tools
         tar c --exclude test --exclude *.test.ts* --exclude *.stories.tsx --exclude .storybook . |
-          DOCKER_BUILDKIT=1 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+          DOCKER_BUILDKIT=1 docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
           --ssh default=./ssh_private_key \
           --build-arg STAGE=$STAGE --build-arg PORT=$PORT --build-arg SERVICE_NAME=$SERVICE_NAME \
           --build-arg DEPLOY_REF=$DEPLOY_REF --build-arg DEPLOY_USER=$USER \
           --build-arg DEPLOY_TIME=$DEPLOY_TIME --build-arg DEPLOY_VERSION=$DEPLOY_VERSION \
           -
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
+        
+        # if arch is arm64 or amd64, add -$arch suffix to the image tag
+        if [[ "${ARCH}" == "arm64" || "${ARCH}" == "amd64" ]]; then
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest-$ARCH
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest-$ARCH
+        fi
+        # else, tag and push the image as latest
+        else
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        fi
     - name: Notify build success
       if: success()
       env:
