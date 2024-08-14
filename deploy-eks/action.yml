@@ -79,15 +79,9 @@ runs:
         ref: 'main'
         token: ${{ inputs.GITHUB_BOT_TOKEN }}
 
-    - name: Change image tag
-      uses: croquiscom/github-actions/yq@main
-      if: inputs.change_image_yq_command == '' && (inputs.stage == 'beta' || inputs.stage == 'beta-rc')
-      with:
-        cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services/${{ inputs.service_name }}/values-${{ inputs.stage }}.yaml
-
     - name: Change image tag for istio
       uses: croquiscom/github-actions/yq@main
-      if: inputs.change_image_yq_command == '' && (inputs.stage == 'alpha' || inputs.stage == 'production')
+      if: inputs.change_image_yq_command == ''
       with:
         cmd: yq e --inplace '.image.tag = "${{ inputs.image_tag }}"' services-istio/${{ inputs.service_name_istio || inputs.service_name }}/values-${{ inputs.stage }}.yaml
 
