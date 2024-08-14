@@ -240,6 +240,8 @@ runs:
           -
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         
+        ## 멀티 아키텍처 빌드를 위해, latest 태그에 arch suffix를 붙여서 푸시
+        
         # if arch is arm64 or amd64, add -$arch suffix to the image tag
         if [[ "${ARCH}" == "arm64" || "${ARCH}" == "amd64" ]]; then
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest-$ARCH
