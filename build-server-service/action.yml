@@ -155,7 +155,8 @@ runs:
           INDEX_VERSION=$(TZ=Asia/Seoul date +%Y.%m%d.%H%M)-${GIT_REF:0:6}
         fi
         DEPLOY_VERSION=$INDEX_VERSION-${{ inputs.arch }}
-        if [[ "${{ inputs.stage }}" == dev-e-* ]]; then
+        if [[ "${{ inputs.stage }}" == dev-* ]]; then
+          INDEX_VERSION=${{ inputs.service_name }}-$INDEX_VERSION
           IMAGE_TAG=${{ inputs.service_name }}-$DEPLOY_VERSION
         else
           IMAGE_TAG=$DEPLOY_VERSION
@@ -251,9 +252,9 @@ runs:
           --build-arg DEPLOY_TIME=$DEPLOY_TIME --build-arg DEPLOY_VERSION=$DEPLOY_VERSION \
           -
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        
+
         ## 멀티 아키텍처 빌드를 위해, latest 태그에 arch suffix를 붙여서 푸시
-        
+
         # if arch is arm64 or amd64, add -$arch suffix to the image tag
         if [[ "${ARCH}" == "arm64" || "${ARCH}" == "amd64" ]]; then
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest-$ARCH
